@@ -1,0 +1,19 @@
+--- a/ath10k-5.15/wmi.c
++++ b/ath10k-5.15/wmi.c
+@@ -2709,13 +2709,15 @@
+ 	 */
+ 	if (channel >= 1 && channel <= 14) {
+ 		status->band = NL80211_BAND_2GHZ;
++	} else if (channel >= -4 && channel <= -1) {
++		status->band = NL80211_BAND_2GHZ;
+ 	} else if (channel >= 36 && channel <= ATH10K_MAX_5G_CHAN) {
+ 		status->band = NL80211_BAND_5GHZ;
+ 	} else {
+ 		/* Shouldn't happen unless list of advertised channels to
+ 		 * mac80211 has been changed.
+ 		 */
+-		WARN_ON_ONCE(1);
++		WARN_ONCE(1, "Bad channel %d\n", channel);
+ 		dev_kfree_skb(skb);
+ 		return 0;
+ 	}

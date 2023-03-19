@@ -1,0 +1,37 @@
+--- a/scan.c
++++ b/scan.c
+@@ -247,7 +247,16 @@ static void print_supprates(const uint8_
+ 
+ static void print_ds(const uint8_t type, uint8_t len, const uint8_t *data)
+ {
+-	printf(" channel %d\n", data[0]);
++	switch (data[0]) {
++		case 252:
++		case 253:
++		case 254:
++		case 255:
++			printf(" channel %d\n", (int8_t)data[0]);
++			break;
++		default:
++			printf(" channel %d\n", data[0]);
++	}
+ }
+ 
+ static const char *country_env_str(char environment)
+--- a/util.c
++++ b/util.c
+@@ -274,11 +274,13 @@ int ieee80211_channel_to_frequency(int c
+ 	case NL80211_BAND_2GHZ:
+ 		if (chan == 14)
+ 			return 2484;
++		else if (chan == 255 || chan == 254 || chan == 253 || chan == 252)
++			return 2402 - 5 * (255 - chan);
+ 		else if (chan < 14)
+ 			return 2407 + chan * 5;
+ 		break;
+ 	case NL80211_BAND_5GHZ:
+-		if (chan >= 182 && chan <= 196)
++		if (chan >= 187 && chan <= 196)
+ 			return 4000 + chan * 5;
+ 		else
+ 			return 5000 + chan * 5;

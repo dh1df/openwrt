@@ -1,0 +1,65 @@
+--- a/iwinfo_cli.c
++++ b/iwinfo_cli.c
+@@ -48,10 +48,21 @@ static char * format_channel(int ch)
+ {
+ 	static char buf[8];
+ 
+-	if (ch <= 0)
+-		snprintf(buf, sizeof(buf), "unknown");
+-	else
+-		snprintf(buf, sizeof(buf), "%d", ch);
++
++	switch (ch) {
++		case 0:
++			snprintf(buf, sizeof(buf), "unknown");
++			break;
++		case 252:
++		case 253:
++		case 254:
++		case 255:
++			snprintf(buf, sizeof(buf), "%d", (int8_t)ch);
++			break;
++       		default:
++			snprintf(buf, sizeof(buf), "%d", ch);
++			break;
++	}
+ 
+ 	return buf;
+ }
+@@ -409,7 +420,7 @@ static char * print_channel(const struct iwinfo_ops *iw, const char *ifname)
+ {
+ 	int ch;
+ 	if (iw->channel(ifname, &ch))
+-		ch = -1;
++		ch = 0;
+ 
+ 	return format_channel(ch);
+ }
+--- a/iwinfo_nl80211.c	2019-05-25 14:36:00.660702602 -0500
++++ b/iwinfo_nl80211.c	2019-05-25 14:38:41.985324601 -0500
+@@ -709,13 +709,12 @@
+  */
+ static int nl80211_channel2freq(int channel, const char *band, bool ax)
+ {
+-	if (channel < 1)
+-		return 0;
+-
+ 	if (!band || band[0] != 'a')
+ 	{
+ 		if (channel == 14)
+ 			return 2484;
++		else if (channel == 255 || channel == 254 || channel == 253 || channel == 252)
++			return 2402 - 5 * (255 - channel);
+ 		else if (channel < 14)
+ 			return (channel * 5) + 2407;
+ 	}
+@@ -733,7 +732,7 @@
+ 	}
+ 	else
+ 	{
+-		if (channel >= 182 && channel <= 196)
++		if (channel >= 187 && channel <= 196)
+ 			return (channel * 5) + 4000;
+ 		else
+ 			return (channel * 5) + 5000;
+
