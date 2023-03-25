@@ -97,6 +97,15 @@ define Package/aredn/install
 	$(INSTALL_BIN) files/www/AREDN.png $(1)/www
 	$(INSTALL_BIN) files/www/black_on_white.css $(1)/www
 	$(INSTALL_BIN) files/www/dot.png $(1)/www
+
+	$(INSTALL_DIR) $(1)/etc/local/uci
+	$(INSTALL_CONF) files/etc/local/uci/hsmmmesh $(1)/etc/local/uci
+
 endef
+define Package/aredn/postinst
+#!/bin/sh
+[ -n "$$$${IPKG_INSTROOT}" ] || /usr/local/bin/nvram-setup
+endef
+
 
 $(eval $(call BuildPackage,aredn))
