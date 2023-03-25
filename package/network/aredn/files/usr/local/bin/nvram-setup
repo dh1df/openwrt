@@ -58,7 +58,9 @@ if wifi_mac == "" or mac2 == "" then
 	local phy
 	for i = 1,5
 	do
-		local f = io.popen("iwinfo " .. get_ifname("wifi") .. " info")
+		local u=uci.cursor()
+	        local iface=u:get("network","wifi","wifi")
+		local f = io.popen("iwinfo " .. iface .. " info")
 		if f then
 			for line in f:lines()
 			do
