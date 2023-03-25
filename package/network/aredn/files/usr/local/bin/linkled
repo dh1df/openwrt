@@ -1,0 +1,93 @@
+#!/bin/sh
+<<'LICENSE'
+  Part of AREDN -- Used for creating Amateur Radio Emergency Data Networks
+  Copyright (C) 2015 Conrad Lara
+   See Contributors file for additional contributors
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation version 3 of the License.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+LICENSE
+
+BOARD_TYPE=$(/usr/local/bin/get_hardwaretype)
+
+case "$BOARD_TYPE" in
+	airrouter)
+		LINK1LED=$(readlink -f '/sys/class/leds/ubnt:green:globe')
+		;;
+	gl-ar150)
+		LINK1LED=$(readlink -f '/sys/class/leds/gl-ar150:orange:wlan')
+		;;
+	gl-ar300m)
+		LINK1LED=$(readlink -f '/sys/class/leds/gl-ar300m:green:wlan')
+		;;
+	gl-usb150)
+		LINK1LED=$(readlink -f '/sys/class/leds/gl-usb150:green:wlan')
+		;;
+	gl-ar750)
+		LINK1LED=$(readlink -f '/sys/class/leds/gl-ar750:white:wlan5g')
+		;;
+	rb-912uag-5hpnd|rb-911g-5hpnd)
+		LINK1LED=$(readlink -f '/sys/class/leds/rb:green:led1')
+                ;;
+	rb-lhg-5nd|rb-lhg-5hpnd|rb-lhg-5hpnd-xl|rb-ldf-5nd)
+		LINK1LED=$(readlink -f '/sys/class/leds/rb:green:rssi0')
+                ;;
+	*)
+		LINK1LED=$(readlink -f /sys/class/leds/*link1)
+		;;
+esac
+
+
+firmware_upgrade_mode() {
+	# Put the LED in "upgrade" mode
+	echo timer > "$LINK1LED/trigger"
+	echo 100 > "$LINK1LED/delay_on"
+	echo 100 > "$LINK1LED/delay_off"
+	echo 1 > "$LINK1LED/brightness"
+
+}
+
+
+reset_led() {
+	# Reset the LED to a blank state
+	echo none > "$LINK1LED/trigger"
+	echo 0 > "$LINK1LED/brightness"
+}
+
+
+link_state() {
+	{
+		reset_led
+
+		while true; do
+			sleep 11;
+			if echo /nei | nc 127.0.0.1 2006 2>/dev/null | grep -q YES; then
+				echo 1 > "$LINK1LED/brightness"
+			else
+				echo 0 > "$LINK1LED/brightness"
+			fi
+		done;
+	} & # Push into the background
+}
+
+case $1 in
+	"upgrade" )
+		firmware_upgrade_mode
+		;;
+	"restore" )
+		reset_led
+		;;
+	*)
+		link_state
+		;;
+esac

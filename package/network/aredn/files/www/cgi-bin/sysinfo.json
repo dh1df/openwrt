@@ -1,0 +1,196 @@
+#!/usr/bin/lua
+--[[
+
+	Part of AREDN -- Used for creating Amateur Radio Emergency Data Networks
+	Copyright (C) 2016 Darryl Quinn
+	See Contributors file for additional contributors
+
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation version 3 of the License.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program.	If not, see <http://www.gnu.org/licenses/>.
+
+	Additional Terms:
+
+	Additional use restrictions exist on the AREDN(TM) trademark and logo.
+		See AREDNLicense.txt for more info.
+
+	Attributions to the AREDN Project must be retained in the source code.
+	If importing this code into a new or existing project attribution
+	to the AREDN project must be added to the source code.
+
+	You must not misrepresent the origin of the material contained within.
+
+	Modified versions must be modified to attribute to the original source
+	and be marked in reasonable ways as differentiate it from the original
+	version
+
+--]]
+
+require("uci")
+require("aredn.utils")
+local aredn_info = require("aredn.info")
+local aredn_olsr = require("aredn.olsr")
+require("aredn.http")
+require("nixio")
+local ipc = require("luci.ip")
+local json = require ("luci.jsonc")
+
+-- Function extensions
+os.capture = capture
+
+-- ==== MAIN =====
+ctx = uci.cursor()
+if not ctx then
+		error("Failed to get uci cursor")
+end
+
+info={}
+
+-- API version
+info['api_version']="1.11"
+
+
+-- NODE name
+info['node']=aredn_info.getNodeName()
+
+info['node_details']={}
+-- MODEL
+info['node_details']['model']=aredn_info.getModel()
+
+-- DESCRIPTION
+info['node_details']['description']=aredn_info.getNodeDescription()
+
+-- BOARD ID
+info['node_details']['board_id']=hardware_boardid()
+
+-- Firmware Manufacturer
+local fw_mfg="AREDN"
+if not file_exists("/www/AREDN.png") then
+	fw_mfg = "Other"
+end
+info['node_details']['firmware_mfg']=fw_mfg
+
+-- Firmware version
+info['node_details']['firmware_version']=aredn_info.getFirmwareVersion()
+
+-- Mesh Gatway
+info['node_details']['mesh_gateway']=aredn_info.getMeshGatewaySetting()
+
+-- Mesh RF info
+info['meshrf']={}
+local radio=aredn_info.getMeshRadioDevice()
+
+if ( radio ~= nil and radio ~= "" ) then
+	info['meshrf']['status']="on"
+	info['meshrf']['ssid']=aredn_info.getSSID()
+	info['meshrf']['channel']=aredn_info.getChannel(radio)
+	info['meshrf']['chanbw']=aredn_info.getChannelBW(radio)
+	info['meshrf']['freq']=aredn_info.getFreq()
+else
+	info['meshrf']['status']="off"
+end
+
+-- Tunnel info
+info['tunnels']={}
+-- ACTIVE TUNNELS
+local atc=""
+atc=os.capture("ifconfig|grep tun|wc -l")
+info['tunnels']['active_tunnel_count']=atc:chomp()
+
+-- Location info
+-- LAT/LON
+local lat, lon = aredn_info.getLatLon()
+info['lat']=lat
+info['lon']=lon
+
+-- GRID SQUARE
+info["grid_square"]=aredn_info.getGridSquare()
+
+-- UPTIME AND LOADAVGS
+mynix=nixio.sysinfo()
+info['sysinfo']={}
+upsecs=mynix['uptime']
+info['sysinfo']['uptime']=secondsToClock(upsecs)
+info['sysinfo']['loads']=mynix['loads']
+for n,x in ipairs(info['sysinfo']['loads']) do
+	info['sysinfo']['loads'][n]=round2(x,2)
+end
+
+-- INTERFACES
+local tif={}
+local ift=get_interfaces()
+
+for pos, i in pairs(ift) do
+	local nim={}
+	local ipv4=""
+	if (i.name ~= "lo" and i.name ~= "wlan0-1" and i.name ~= "wlan1-1") then
+		--table.print(i)
+		nim['name']=i.name
+		ipv4=tostring(i.ipaddrs[1])
+		nim['ip']=ipFromCIDR(ipv4)
+		if i.macaddr~=nil then	-- ie. tunXX interfaces have nil for macaddr
+			nim['mac']=i.macaddr:upper()
+		end
+		table.insert(tif,nim)
+	end
+end
+info['interfaces']=tif
+
+-- HOSTS
+if string.find(nixio.getenv("QUERY_STRING"):lower(),"hosts=1") then
+	info['hosts']=aredn_info.all_hosts()
+end
+
+-- SERVICES
+if string.find(nixio.getenv("QUERY_STRING"):lower(),"services=1") then
+	info['services']=aredn_info.all_services()
+end
+
+-- LOCALLY HOSTED SERVICES ONLY
+if string.find(nixio.getenv("QUERY_STRING"):lower(),"services_local=1") then
+	info['services_local']=aredn_info.local_services()
+end
+
+-- LOCAL NEIGHBORS LINK INFO
+if string.find(nixio.getenv("QUERY_STRING"):lower(),"link_info=1") then
+	info['link_info']=aredn_olsr.getCurrentNeighbors(true)
+end
+
+-- LQM INFO
+if string.find(nixio.getenv("QUERY_STRING"):lower(),"lqm=1") then
+	local lqm = { enabled = false }
+	if ctx:get("aredn", "@lqm[0]", "enable") == "1" then
+		lqm.enabled = true
+		lqm.config = {
+			min_snr = tonumber(ctx:get("aredn", "@lqm[0]", "min_snr")),
+			margin_snr = tonumber(ctx:get("aredn", "@lqm[0]", "margin_snr")),
+			min_distance = tonumber(ctx:get("aredn", "@lqm[0]", "min_distance")),
+			max_distance = tonumber(ctx:get("aredn", "@lqm[0]", "max_distance")),
+			auto_distance = tonumber(ctx:get("aredn", "@lqm[0]", "auto_distance") or "0"),
+			min_quality = tonumber(ctx:get("aredn", "@lqm[0]", "min_quality")),
+			margin_quality = tonumber(ctx:get("aredn", "@lqm[0]", "margin_quality")),
+			ping_penalty = tonumber(ctx:get("aredn", "@lqm[0]", "ping_penalty")),
+			user_blocks = ctx:get("aredn", "@lqm[0]", "user_blocks"),
+			user_allows = ctx:get("aredn", "@lqm[0]", "user_allows")
+		}
+		lqm.info = {}
+		if nixio.fs.stat("/tmp/lqm.info") then
+			lqm.info = json.parse(io.open("/tmp/lqm.info", "r"):read("*a"))
+		end
+	end
+	info['lqm']=lqm
+end
+
+-- Output the HTTP header for JSON
+json_header()
+
+-- Output the info table as json
+print(json.stringify(info,true))

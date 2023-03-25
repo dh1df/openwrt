@@ -1,0 +1,22 @@
+#!/bin/sh
+# Return the model of the device
+
+SYSINFO=/tmp/sysinfo/model
+
+if [ ! -f $SYSINFO ]; then
+CFG=/etc/board.json
+name=""
+
+. /usr/share/libubox/jshn.sh
+
+[ -f $CFG ] || exit 1
+json_init
+json_load "$(cat ${CFG})"
+json_select model
+json_get_vars name
+
+echo "$name" > $SYSINFO
+
+fi
+
+cat $SYSINFO

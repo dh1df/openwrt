@@ -1,0 +1,22 @@
+#!/bin/sh
+# Return the boardid of the device
+
+SYSINFO=/tmp/sysinfo/boardid
+
+if [ ! -f $SYSINFO ]; then
+  name=""
+
+  if [ "$(/usr/local/bin/get_hardware_mfg)" = "Ubiquiti" ]; then
+    [ -f "/sys/devices/pci0000:00/0000:00:00.0/subsystem_device" ] && 
+	    name="$(cat /sys/devices/pci0000:00/0000:00:00.0/subsystem_device)"
+    [ "$name" = "0x0000" -o -z $name ] &&  
+	    name="0x$(dd if=/dev/mtd7 bs=1 skip=12 count=2 2>/dev/null | hexdump -v -n 4 -e '1/1 "%02x"')"
+  fi	
+
+  [ "$name" = "0x0000" -o -z $name ] && name="$(/usr/local/bin/get_model)" 
+
+  echo "$name" > $SYSINFO
+
+fi
+
+cat $SYSINFO
