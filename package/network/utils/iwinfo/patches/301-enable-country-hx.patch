@@ -1,0 +1,11 @@
+diff -ru a/iwinfo_lib.c b/iwinfo_lib.c
+--- a/iwinfo_lib.c	2023-04-02 14:03:09.404179337 +0200
++++ b/iwinfo_lib.c	2023-04-02 14:03:28.832282897 +0200
+@@ -219,6 +219,7 @@
+ 	{ 0x4852 /* HR */, "Croatia" },
+ 	{ 0x4854 /* HT */, "Haiti" },
+ 	{ 0x4855 /* HU */, "Hungary" },
++	{ 0x4858 /* HX */, "HAM Radio" },
+ 	{ 0x4944 /* ID */, "Indonesia" },
+ 	{ 0x4945 /* IE */, "Ireland" },
+ 	{ 0x494C /* IL */, "Israel" },

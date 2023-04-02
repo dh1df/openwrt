@@ -63,3 +63,17 @@
  		else
  			return (channel * 5) + 5000;
 
+--- a/iwinfo_lua.c	2023-04-02 14:29:05.916476617 +0200
++++ b/iwinfo_lua.c	2023-04-02 14:28:38.332329574 +0200
+@@ -493,7 +493,10 @@
+ 			lua_setfield(L, -2, "mhz");
+ 
+ 			/* Channel */
+-			lua_pushinteger(L, e->channel);
++			if (e->channel >= 252 && e->channel <= 255) 
++				lua_pushinteger(L, e->channel-256); /* Negative values for ham radio */
++			else
++				lua_pushinteger(L, e->channel);
+ 			lua_setfield(L, -2, "channel");
+ 
+ 			/* Restricted (DFS/TPC/Radar) */

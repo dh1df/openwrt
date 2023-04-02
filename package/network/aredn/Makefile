@@ -8,7 +8,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=aredn
-PKG_RELEASE:=5
+PKG_RELEASE:=6
 
 PKG_MAINTAINER:=OVS48 <aredn@ovs48.de>
 PKG_LICENSE:=GPL-2.0
@@ -104,7 +104,7 @@ define Package/aredn/install
 endef
 define Package/aredn/postinst
 #!/bin/sh
-[ -n "$$$${IPKG_INSTROOT}" ] || /usr/local/bin/nvram-setup
+[ -n "$${IPKG_INSTROOT}" ] || /usr/local/bin/nvram-setup
 endef
 
 

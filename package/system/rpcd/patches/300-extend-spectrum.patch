@@ -1,0 +1,15 @@
+diff -ur a/iwinfo.c b/iwinfo.c
+--- a/iwinfo.c	2023-04-02 15:13:09.302567535 +0200
++++ b/iwinfo.c	2023-04-02 15:19:18.476535454 +0200
+@@ -631,7 +631,10 @@
+ 			f = (struct iwinfo_freqlist_entry *)&res[i];
+ 			d = blobmsg_open_table(&buf, NULL);
+ 
+-			blobmsg_add_u32(&buf, "channel", f->channel);
++			if (f->channel >= 252 && f->channel <= 255)
++				blobmsg_add_u32(&buf, "channel", f->channel-256); /* Allow negative HAM Channels */
++			else
++				blobmsg_add_u32(&buf, "channel", f->channel);
+ 			blobmsg_add_u32(&buf, "mhz", f->mhz);
+ 			blobmsg_add_u8(&buf, "restricted", f->restricted);
+ 
